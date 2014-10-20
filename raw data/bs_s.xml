@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<bug_status>
+  <report id="322057">
+    <update>
+      <when>1136091271</when>
+      <what>UNCONFIRMED</what>
+    </update>
+    <update>
+      <when>1136096396</when>
+      <what>RESOLVED</what>
+    </update>
+  </report>
+</bug_status>
