@@ -21,7 +21,7 @@ parse_reports <- function(filename='raw data/reports.xml'){
   return(reportsdf)
 }
 
-parse_other <-function(filename='raw data/resolution.xml', data_names=c()){
+parse_other <-function(filename, data_names=c()){
   # Parses the xml file into the data.table
   #
   # Args:
@@ -68,15 +68,55 @@ build_data <-function(){
   # An example, parses and merges a number of files into one data.table
   # and tidies the resulting data
   df <- merge_files(
-    c('raw data/resolution.xml', 'raw data/op_sys.xml'), 
+    c('raw data/resolution.xml', 'raw data/assigned_to.xml'), 
     list(c('resolved_when', 'resolved_status'), 
-         c('os_when', 'os')))
+         c('assigned_when', 'contributor')))
   df$id <- as.integer(df$id)
-  df$os <- as.factor(df$os)
+  #df$contributor <- as.factor(df$contributor)
   df$resolved_status <- as.factor(df$resolved_status)
-  df$os_when <- as.integer(df$os_when)
+  df$assigned_when <- as.integer(df$assigned_when)
   df$resolved_when <- as.integer(df$resolved_when)
   return(df)
+}
+
+
+contributors <- function(){
+  # reads and has a peak at the number of bugs by contributor distribution
+  
+  # read the necessary data
+  df <- merge_files(
+    c('raw data/resolution.xml', 'raw data/assigned_to.xml'), 
+    list(c('resolved_when', 'resolved_status'), 
+         c('assigned_when', 'contributor')))
+  df$id <- as.integer(df$id)
+  df$contributor <- as.factor(df$contributor)
+  df$resolved_status <- as.factor(df$resolved_status)
+  df$assigned_when <- as.integer(df$assigned_when)
+  df$resolved_when <- as.integer(df$resolved_when)
+  # save data
+  write.csv(df, "tidy data/contributors.csv", row.names=FALSE)
+  dt <- data.table(df)
+  # clean missing and dummy values
+  dt <- dt[dt$contributor != 'nobody@mozilla.org' & dt$contributor != '']
+  # group by contributors and sort
+  contributors <- dt[,list(nbugs=length(unique(.SD$id))), by=contributor]
+  setkey(contributors, nbugs)
+  setorder(contributors,-nbugs)
+  
+  # print some insights
+  print("Top 10 contributors")
+  print(head(contributors, n=10))
+  print("Number of resolved bugs summary statistics")
+  print(summary(contributors$nbugs))
+  # Pareto principle works for mozilla contributors! 
+  round(contributors[1:ceiling(nrow(contributors)*0.2),
+                     sum(nbugs)]/contributors[,sum(nbugs)]*100)
+  png('tidy data/contribs.png')
+  hist(contributors$nbugs, 
+       xlab='Number of bugs', 
+       ylab='Frequency', 
+       main="Number of bug per contributor")
+  dev.off()
 }
 
 ###what was done in class
