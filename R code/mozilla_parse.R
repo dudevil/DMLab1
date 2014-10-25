@@ -82,7 +82,7 @@ build_data <-function(){
 
 contributors <- function(){
   # reads and has a peak at the number of bugs by contributor distribution
-  
+
   # read the necessary data
   df <- merge_files(
     c('raw data/resolution.xml', 'raw data/assigned_to.xml'), 
@@ -130,3 +130,50 @@ parse_class <- function(filename='raw data/resolution.xml'){
   names(resolutions) <- c("report id", "update_when", "update_what")
   return(resolutions)
 }
+
+
+# -------------------------------------------------------- #
+library(sqldf)
+#setwd("C:/Programming_DM/DM Track Autumn 2014/DM1_Practice/DMLab1")
+
+# 1. Data
+reports <- parse_reports()
+#resolutions <- parse_other(filename = "raw data/resolution.xml")
+bug_statuses <- parse_other(filename = "raw data/bug_status.xml")
+
+names(reports) <- c("opening_time", "reporter", "report_id")
+reports$report_id <- as.integer(reports$report_id)
+reports$opening_time <- as.integer(reports$opening_time)
+reports$reporter <- as.integer(reports$reporter)
+
+names(bug_statuses) <- c("bug_status_update", "bug_status", "report_id")
+bug_statuses$report_id <- as.integer(bug_statuses$report_id)
+bug_statuses$bug_status <- as.factor(bug_statuses$bug_status)
+bug_statuses$bug_status_update <- as.integer(bug_statuses$bug_status_update)
+
+# 2. Select
+resolved_bugs <- sqldf("select max(bug_status_update) as resolved_time, bug_status, report_id from bug_statuses group by report_id having bug_status = 'RESOLVED'")
+
+# 3. Merge
+bug_reports <- merge(reports, resolved_bugs, by="report_id")
+
+# 4. Diff time
+bug_reports$resolving_time <- bug_reports$resolved_time - bug_reports$opening_time
+format_bug_reports$resolving_time <- format(as.POSIXct(bug_reports$resolving_time, "%H:%M:%OS %d.%m.%Y", origin = "0000-01-01"))
+
+bug_reports$resolving_time_weeks <- bug_reports$resolving_time / (60 * 60 * 24 * 7)
+
+# 5. Summary
+summary(bug_reports$resolving_time_weeks)
+
+# 6. Graphics
+library(ggplot2)
+ggplot(bug_reports, aes(x=resolving_time_weeks)) + geom_density()
+
+# 7. Top
+n <- 10
+
+attach(bug_reports)
+top_fast <- (bug_reports[order(+resolving_time), ])[1:n, ]
+top_slow <- (bug_reports[order(-resolving_time), ])[1:n, ]
+detach(bug_reports)
