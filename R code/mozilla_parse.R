@@ -1,5 +1,6 @@
 require('XML')
 require('data.table')
+require('ggplot2')
 
 parse_reports <- function(filename='raw data/reports.xml'){
   # Parses the reports.xml file 
@@ -116,6 +117,46 @@ contributors <- function(){
        xlab='Number of bugs', 
        ylab='Frequency', 
        main="Number of bug per contributor")
+  dev.off()
+}
+
+op_sys_severity <- function(){
+  # study bug distribution by operating system
+  # read the necessary data and change variable formats
+  df <- merge_files(
+    c('op_sys.xml', 'severity.xml'),
+    list(c('op_when', 'op_sys'),
+         c('sev_when', 'severity')))
+  df$id <- as.integer(df$id)
+  df$severity <- as.factor(df$severity)
+  df$op_sys <- as.factor(df$op_sys)
+  df$op_when <- as.integer(df$op_when)
+  df$sev_when <- as.integer(df$sev_when)
+  # save data
+  write.csv(df, "op_sys_severity.csv", row.names=FALSE)
+  # check missing values
+  print('Check NA values:')
+  summary(is.na(df$op_sys))
+  summary(is.na(odf$severity))
+  # Converting to data.table to get the unique values of severity/operating system
+  dt <- data.table(df)
+  sever <- dt[,list(nbugs=length(unique(.SD$id))), by = severity]
+  setkey(sever, nbugs)
+  op_sys <- dt[,list(nbugs=length(unique(.SD$id))), by = op_sys]
+  # basic summary
+  print('Summary statistics for bugs severity and users\'s operating systems:')
+  summary(sever)
+  summary(op_sys)
+  # Boxplot for bugs severity
+  png('severity.png')
+  sev_plot <- ggplot(data = sever, 
+                     aes(x = reorder(severity, nbugs), y = nbugs)) +
+    geom_bar(stat = "identity") +
+    theme_bw() +
+    labs(list(title = "Distribution of bugs by severity",
+              x = "Severity level", y = "Number of Bugs")) +
+    theme(plot.title = element_text(size = 16))
+  sev_plot
   dev.off()
 }
 
